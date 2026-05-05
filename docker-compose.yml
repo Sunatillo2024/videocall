@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: nexcall-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - nexcall-net
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+
+  nginx:
+    image: nginx:alpine
+    container_name: nexcall-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - nexcall-net
+
+  turn:
+    image: coturn/coturn:latest
+    container_name: nexcall-turn
+    restart: unless-stopped
+    network_mode: host   # TURN needs direct network access
+    volumes:
+      - ./infra/turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+
+networks:
+  nexcall-net:
+    driver: bridge
